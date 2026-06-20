@@ -1,7 +1,23 @@
 # WeBirr WooCommerce Docker Example
 
+![WeBirr checkout payment method](screenshots/woocommerce-checkout-selection.png)
+
 This example starts a local WordPress/WooCommerce store with the WeBirr gateway
-mounted from the repository.
+mounted from this repository. It is intended for local validation, screenshots,
+and release checks before packaging the plugin.
+
+## What This Example Demonstrates
+
+- WordPress and WooCommerce running in Docker.
+- The actual WeBirr WooCommerce plugin mounted into
+  `wp-content/plugins/woocommerce-gateway-webirr`.
+- WooCommerce configured with a demo product and classic checkout pages.
+- TestEnv merchant credentials read from local environment variables.
+- WeBirr selected as the payment method during checkout.
+- A real WeBirr Payment Code page with merchant-supported payment instructions.
+- Browser polling through the plugin's WordPress REST endpoint.
+
+The example does not write merchant credentials into tracked files.
 
 ## Run
 
@@ -13,24 +29,85 @@ docker compose run --rm cli sh /scripts/bootstrap.sh
 ```
 
 Open the demo product URL printed by the bootstrap script, add the product to
-cart, and choose WeBirr at checkout.
+cart, and choose **WeBirr** at checkout.
 
-The bootstrap script configures WooCommerce's generated cart and checkout pages
-to use the classic shortcodes. This keeps the example screenshot flow stable.
-The plugin also registers WeBirr for WooCommerce Checkout Blocks when the
-Blocks payment API is available.
+Default site URL:
 
-The example uses TestEnv credentials from environment variables. It does not
-write credentials into tracked files.
+```text
+http://localhost:8097
+```
+
+If that port is busy, set `WEBIRR_WOOCOMMERCE_PORT` in `.env` and run the
+bootstrap command again.
+
+## Example Payment Flow
+
+1. Open the demo WooCommerce product.
+2. Add it to the cart.
+3. Go to checkout and choose **WeBirr**.
+4. Place the order.
+5. The plugin creates or resumes the WeBirr bill using the WooCommerce order's
+   stable merchant reference.
+6. The payment page displays the **WeBirr Payment Code** and the merchant's
+   supported banking or wallet instructions.
+7. The customer pays in a supported app using:
+   `{Banking App} -> WeBirr menu -> Enter Payment Code -> Pay`.
+8. The page polls WordPress for payment status.
+9. WordPress checks WeBirr from the server side.
+10. When paid, WooCommerce stores the payment reference and paid-via value, then
+    completes the order.
 
 ## Screenshots
 
+### Checkout Payment Method
+
+The customer chooses WeBirr during WooCommerce checkout.
+
 ![WeBirr checkout payment method](screenshots/woocommerce-checkout-selection.png)
 
+### Payment Code Page
+
+After checkout, the customer sees the WeBirr Payment Code and only the payment
+instructions returned for the configured merchant.
+
 ![WeBirr payment code](screenshots/woocommerce-payment-code.png)
+
+## Classic Checkout and Blocks
+
+The bootstrap script configures WooCommerce's generated cart and checkout pages
+to use classic shortcodes. This keeps the example screenshot flow stable and
+easy to compare during release checks.
+
+The plugin also registers WeBirr for WooCommerce Checkout Blocks when the
+Blocks payment API is available. Blocks support should be verified separately in
+a WordPress admin page using the block-based checkout template.
+
+## Useful Commands
+
+Show container status:
+
+```bash
+docker compose ps
+```
+
+Tail WordPress logs:
+
+```bash
+docker compose logs -f wordpress
+```
+
+Reset the example completely:
+
+```bash
+docker compose down -v
+```
 
 ## Notes
 
 - The production plugin supports only `TestEnv` and `ProdEnv`.
-- Mocking belongs in tests or standalone examples, not in production settings.
-- Payment instructions are loaded from the merchant-supported banks endpoint.
+- Mocking belongs in tests or standalone examples, not in production plugin
+  settings.
+- Payment instructions are loaded from WeBirr's merchant-supported banks
+  endpoint.
+- Browser JavaScript calls only WordPress. WeBirr merchant APIs are called from
+  the WordPress server.
