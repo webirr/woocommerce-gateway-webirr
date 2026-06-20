@@ -76,6 +76,17 @@ the local demo server, and the local server calls WeBirr.
 After payment is received, the screen changes to the confirmation view and shows
 the payment reference and the channel used to pay.
 
+## How It Compares To The Plugin
+
+The standalone demo shares the same WeBirr client, response normalizer, and
+supported-bank formatter used by the WooCommerce plugin. It does not use
+WooCommerce orders or WordPress REST routes, so use it only for quick visual
+checks and retry/recovery experiments.
+
+The real WooCommerce plugin remains the release-validation path because it uses
+WooCommerce order metadata, the WooCommerce order key, the plugin payment page,
+and WooCommerce's native order completion flow.
+
 ## How the Customer Pays
 
 The customer uses the displayed **WeBirr Payment Code** inside a mobile banking

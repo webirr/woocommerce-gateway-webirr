@@ -107,7 +107,6 @@ final class Payment_Page {
             [
                 'statusUrl' => esc_url_raw(rest_url('webirr/v1/orders/' . $order->get_id() . '/payment-status')),
                 'orderKey' => method_exists($order, 'get_order_key') ? $order->get_order_key() : '',
-                'nonce' => wp_create_nonce('wp_rest'),
                 'successUrl' => method_exists($order, 'get_checkout_order_received_url')
                     ? $order->get_checkout_order_received_url()
                     : home_url('/'),
@@ -196,4 +195,3 @@ final class Payment_Page {
         return (string)ob_get_clean();
     }
 }
-

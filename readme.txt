@@ -27,7 +27,7 @@ Features:
 * Server-side WeBirr bill creation, bill recovery, and payment-code handling.
 * Merchant-supported payment instructions from WeBirr's supported-banks API.
 * Browser polling through a WordPress REST endpoint.
-* Idempotent WooCommerce order completion after payment is confirmed.
+* Idempotent WooCommerce order completion after payment is confirmed, guarded by a backend completion lock.
 * TestEnv and ProdEnv gateway modes.
 
 == WeBirr Payment Flow ==
@@ -47,6 +47,7 @@ At a glance, the payment flow is:
 10. WooCommerce completes the order and continues its normal fulfillment flow.
 
 The payment page shows only banks and wallets returned by WeBirr for the configured merchant.
+The browser status endpoint is scoped by the WooCommerce order key and returns only safe display fields.
 
 == Installation ==
 

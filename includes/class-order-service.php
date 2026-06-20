@@ -21,6 +21,8 @@ final class Order_Service {
     public const META_COMPLETED_AT = '_webirr_completed_at';
     public const META_LAST_ERROR = '_webirr_last_error';
 
+    private const COMPLETION_LOCK_TTL_SECONDS = 120;
+
     /** @var Client */
     private Client $client;
 
@@ -148,38 +150,53 @@ final class Order_Service {
             $paid_at = $this->current_time();
         }
 
-        if ($payment_reference !== '') {
-            $this->set_meta($order, self::META_PAYMENT_REFERENCE, $payment_reference);
-            if (method_exists($order, 'set_transaction_id')) {
-                $order->set_transaction_id($payment_reference);
-            }
-        }
-
-        if ($paid_via !== '') {
-            $this->set_meta($order, self::META_PAID_VIA, $paid_via);
-        }
-
         $already_completed = $this->get_meta($order, self::META_COMPLETED_AT) !== '';
         $already_paid = method_exists($order, 'is_paid') && $order->is_paid();
+        $needs_completion = !$already_completed && !$already_paid;
+        $lock_acquired = false;
 
-        if (!$already_completed && !$already_paid) {
-            if (method_exists($order, 'payment_complete')) {
-                $order->payment_complete($payment_reference);
+        if ($needs_completion) {
+            $lock_acquired = $this->acquire_completion_lock($order, $payment_reference);
+            if (!$lock_acquired) {
+                return;
             }
-
-            if ($this->paid_order_status !== '' && method_exists($order, 'update_status')) {
-                $order->update_status($this->paid_order_status, 'WeBirr payment confirmed.');
-            }
-
-            $this->set_meta($order, self::META_COMPLETED_AT, $paid_at);
-            $this->add_note($order, 'WeBirr payment confirmed.');
-        } elseif (!$already_completed) {
-            $this->set_meta($order, self::META_COMPLETED_AT, $paid_at);
         }
 
-        $this->set_meta($order, self::META_PAYMENT_STATUS, '2');
-        $this->set_meta($order, self::META_LAST_ERROR, '');
-        $this->save($order);
+        try {
+            if ($payment_reference !== '') {
+                $this->set_meta($order, self::META_PAYMENT_REFERENCE, $payment_reference);
+                if (method_exists($order, 'set_transaction_id')) {
+                    $order->set_transaction_id($payment_reference);
+                }
+            }
+
+            if ($paid_via !== '') {
+                $this->set_meta($order, self::META_PAID_VIA, $paid_via);
+            }
+
+            if ($needs_completion) {
+                if (method_exists($order, 'payment_complete')) {
+                    $order->payment_complete($payment_reference);
+                }
+
+                if ($this->paid_order_status !== '' && method_exists($order, 'update_status')) {
+                    $order->update_status($this->paid_order_status, 'WeBirr payment confirmed.');
+                }
+
+                $this->set_meta($order, self::META_COMPLETED_AT, $paid_at);
+                $this->add_note($order, 'WeBirr payment confirmed.');
+            } elseif (!$already_completed) {
+                $this->set_meta($order, self::META_COMPLETED_AT, $paid_at);
+            }
+
+            $this->set_meta($order, self::META_PAYMENT_STATUS, '2');
+            $this->set_meta($order, self::META_LAST_ERROR, '');
+            $this->save($order);
+        } finally {
+            if ($lock_acquired) {
+                $this->release_completion_lock($order, $payment_reference);
+            }
+        }
     }
 
     /**
@@ -456,6 +473,60 @@ final class Order_Service {
         if (method_exists($order, 'add_order_note')) {
             $order->add_order_note($message);
         }
+    }
+
+    /**
+     * Acquire a short-lived durable completion lock before calling payment_complete.
+     *
+     * @param object $order WooCommerce order.
+     * @param string $payment_reference Bank payment reference.
+     * @return bool Whether the completion path may continue.
+     */
+    private function acquire_completion_lock($order, string $payment_reference): bool {
+        if (!function_exists('add_option') || !function_exists('get_option') || !function_exists('delete_option')) {
+            return true;
+        }
+
+        $key = $this->completion_lock_key($order, $payment_reference);
+        $now = time();
+        if (add_option($key, (string)$now, '', 'no')) {
+            return true;
+        }
+
+        $created = (int)get_option($key, 0);
+        if ($created > 0 && $created < ($now - self::COMPLETION_LOCK_TTL_SECONDS)) {
+            delete_option($key);
+            return add_option($key, (string)$now, '', 'no');
+        }
+
+        return false;
+    }
+
+    /**
+     * Release the completion lock.
+     *
+     * @param object $order WooCommerce order.
+     * @param string $payment_reference Bank payment reference.
+     * @return void
+     */
+    private function release_completion_lock($order, string $payment_reference): void {
+        if (function_exists('delete_option')) {
+            delete_option($this->completion_lock_key($order, $payment_reference));
+        }
+    }
+
+    /**
+     * Build a compact option key for the paid-completion lock.
+     *
+     * @param object $order WooCommerce order.
+     * @param string $payment_reference Bank payment reference.
+     * @return string
+     */
+    private function completion_lock_key($order, string $payment_reference): string {
+        $order_id = method_exists($order, 'get_id') ? (string)$order->get_id() : '';
+        $payment_code = $this->get_meta($order, self::META_PAYMENT_CODE);
+
+        return 'webirr_wc_completion_lock_' . md5($order_id . '|' . $payment_code . '|' . $payment_reference);
     }
 
     /**

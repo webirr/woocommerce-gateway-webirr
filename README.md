@@ -1,6 +1,6 @@
 # WeBirr Gateway for WooCommerce
 
-![WeBirr WooCommerce payment code](examples/docker/screenshots/woocommerce-payment-code.png)
+![WeBirr WooCommerce online checkout flow](examples/docker/screenshots/woocommerce-online-checkout-journey.png)
 
 This repository contains the WeBirr payment gateway plugin for WooCommerce plus
 a local Docker example that installs and exercises the actual plugin.
@@ -30,7 +30,8 @@ Features:
 - Merchant-supported payment instructions from WeBirr's supported-banks API.
 - Browser polling through a WordPress REST endpoint, with WeBirr status checks
   performed on the server side.
-- Idempotent WooCommerce order completion after WeBirr confirms payment.
+- Idempotent WooCommerce order completion after WeBirr confirms payment, guarded
+  by a short-lived backend completion lock.
 - TestEnv and ProdEnv gateway modes.
 - Optional WooCommerce debug logging with API key redaction.
 - WooCommerce HPOS compatibility declaration.
@@ -89,6 +90,10 @@ The plugin keeps checkout state in WooCommerce order metadata so page refreshes,
 duplicate clicks, and repeated status checks can be handled without exposing
 merchant credentials to the browser.
 
+The browser status endpoint is authorized by the WooCommerce order key embedded
+in the payment page URL. The endpoint returns only safe display fields and never
+returns merchant credentials or raw gateway payloads.
+
 ## WeBirr Payment Flow
 
 At a glance, the payment flow is:
@@ -122,6 +127,7 @@ shows only the subset returned by WeBirr for the configured merchant.
 - WordPress checks WeBirr payment status from the server side.
 - If payment has not been received yet, the page keeps waiting and the customer
   can refresh status safely.
+- Manual refresh is hidden unless polling fails or times out.
 
 ### 4. Completion and Order Access
 
@@ -161,9 +167,13 @@ wallet app. Detailed customer payment instructions are available on the WeBirr
 The Docker example screenshots show the plugin running inside WooCommerce with
 TestEnv credentials.
 
+![WeBirr WooCommerce online checkout flow](examples/docker/screenshots/woocommerce-online-checkout-journey.png)
+
 ![WeBirr payment method at checkout](examples/docker/screenshots/woocommerce-checkout-selection.png)
 
 ![WeBirr payment code page](examples/docker/screenshots/woocommerce-payment-code.png)
+
+![WeBirr payment confirmation](examples/docker/screenshots/woocommerce-payment-confirmed.png)
 
 ## Local Docker Example
 
@@ -187,6 +197,11 @@ The Docker example switches WooCommerce's generated cart and checkout pages to
 classic shortcodes so the screenshot flow validates the classic WooCommerce
 payment flow. The plugin also registers WeBirr for WooCommerce Checkout Blocks
 when the Blocks payment API is available.
+
+The current private release candidate uses browser polling for the immediate
+customer-facing confirmation path. Webhook callbacks and background
+reconciliation are planned follow-up work so delayed payments can complete even
+when the customer closes the browser.
 
 ### Standalone Checkout Demo
 
@@ -233,6 +248,11 @@ Build a plugin ZIP whose top-level folder is `woocommerce-gateway-webirr`:
 ```
 
 The ZIP is created under `dist/`.
+
+The package script uses an allow-list and includes only the real plugin runtime:
+`woocommerce-gateway-webirr.php`, `readme.txt`, `assets/`, `includes/`, and
+`languages/` when present. Examples, tests, Docker files, local data, and repo
+metadata are intentionally excluded from the plugin ZIP.
 
 ## Release Status
 

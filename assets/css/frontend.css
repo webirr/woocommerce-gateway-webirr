@@ -193,6 +193,17 @@
   width: 42px;
 }
 
+.webirr-wc-panel.is-paid .webirr-wc-payment-code,
+.webirr-wc-panel.is-paid .webirr-wc-status,
+.webirr-wc-panel.is-paid .webirr-wc-instructions,
+.webirr-wc-panel.is-paid .webirr-wc-refresh {
+  display: none;
+}
+
+.webirr-wc-panel.is-paid .webirr-wc-confirmation {
+  margin-top: 0;
+}
+
 @keyframes webirr-spin {
   to {
     transform: rotate(360deg);
@@ -220,4 +231,3 @@
     font-size: 30px;
   }
 }
-

@@ -1,6 +1,6 @@
 # WeBirr WooCommerce Docker Example
 
-![WeBirr checkout payment method](screenshots/woocommerce-checkout-selection.png)
+![WeBirr WooCommerce online checkout flow](screenshots/woocommerce-online-checkout-journey.png)
 
 This example starts a local WordPress/WooCommerce store with the WeBirr gateway
 mounted from this repository. It is intended for local validation, screenshots,
@@ -16,6 +16,8 @@ and release checks before packaging the plugin.
 - WeBirr selected as the payment method during checkout.
 - A real WeBirr Payment Code page with merchant-supported payment instructions.
 - Browser polling through the plugin's WordPress REST endpoint.
+- Paid confirmation with payment reference and paid-via value after server-side
+  WeBirr verification.
 
 The example does not write merchant credentials into tracked files.
 
@@ -57,7 +59,12 @@ bootstrap command again.
 10. When paid, WooCommerce stores the payment reference and paid-via value, then
     completes the order.
 
+The browser status request uses the WooCommerce order key from the payment page
+URL. The browser never receives the WeBirr merchant ID or API key.
+
 ## Screenshots
+
+![WeBirr WooCommerce online checkout flow](screenshots/woocommerce-online-checkout-journey.png)
 
 ### Checkout Payment Method
 
@@ -71,6 +78,14 @@ After checkout, the customer sees the WeBirr Payment Code and only the payment
 instructions returned for the configured merchant.
 
 ![WeBirr payment code](screenshots/woocommerce-payment-code.png)
+
+### Payment Confirmation
+
+After WeBirr reports the payment as paid, the plugin shows the payment reference
+and the channel used to pay before WooCommerce continues to the normal order
+received page.
+
+![WeBirr payment confirmation](screenshots/woocommerce-payment-confirmed.png)
 
 ## Classic Checkout and Blocks
 

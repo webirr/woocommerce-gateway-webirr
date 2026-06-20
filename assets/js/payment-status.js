@@ -53,8 +53,7 @@
 
     window.fetch(statusUrl(), {
       headers: {
-        'Accept': 'application/json',
-        'X-WP-Nonce': config.nonce || ''
+        'Accept': 'application/json'
       },
       credentials: 'same-origin'
     })
@@ -111,6 +110,7 @@
     clearTimeout(pollTimer);
     setRefresh(false);
     setStatus('success', 'Your payment was successful.', false);
+    panel.classList.add('is-paid');
 
     var confirmation = panel.querySelector('[data-webirr-confirmation]');
     if (confirmation) {
@@ -136,4 +136,3 @@
 
   ready(start);
 })();
-

@@ -28,6 +28,26 @@ function current_time(string $format = 'mysql'): string {
     return $format === 'mysql' ? '2026-06-20 12:00:00' : date($format, strtotime('2026-06-20 12:00:00'));
 }
 
+$GLOBALS['webirr_test_options'] = [];
+
+function add_option(string $name, $value = '', string $deprecated = '', string $autoload = 'yes'): bool {
+    if (array_key_exists($name, $GLOBALS['webirr_test_options'])) {
+        return false;
+    }
+
+    $GLOBALS['webirr_test_options'][$name] = $value;
+    return true;
+}
+
+function get_option(string $name, $default = false) {
+    return $GLOBALS['webirr_test_options'][$name] ?? $default;
+}
+
+function delete_option(string $name): bool {
+    unset($GLOBALS['webirr_test_options'][$name]);
+    return true;
+}
+
 function assert_true(bool $condition, string $message): void {
     if (!$condition) {
         throw new RuntimeException($message);
@@ -205,6 +225,7 @@ function test_update_unpaid_changed_existing_bill(): void {
 }
 
 function test_idempotent_paid_completion(): void {
+    $GLOBALS['webirr_test_options'] = [];
     $calls = [];
     $client = client_with_transport($calls, [
         '{"error":null,"res":{"status":2,"paymentReference":"TX123","bankName":"CBE Mobile","paymentDate":"2026-06-20 12:05:00"}}',
@@ -223,6 +244,41 @@ function test_idempotent_paid_completion(): void {
     assert_same(1, $order->paymentCompleteCalls, 'Repeated paid checks must call payment_complete once.');
     assert_same('TX123', $order->meta[Order_Service::META_PAYMENT_REFERENCE], 'Payment reference should be stored.');
     assert_same('CBE Mobile', $order->meta[Order_Service::META_PAID_VIA], 'Paid-via issuer should be stored.');
+}
+
+function test_completion_lock_blocks_parallel_completion(): void {
+    $GLOBALS['webirr_test_options'] = [];
+    $calls = [];
+    $client = client_with_transport($calls, []);
+    $order = new FakeOrder();
+    $order->meta[Order_Service::META_MERCHANT_REFERENCE] = 'wc_1_42';
+    $order->meta[Order_Service::META_PAYMENT_CODE] = 'PAY123';
+    $lockkey = 'webirr_wc_completion_lock_' . md5('42|PAY123|TX123');
+    add_option($lockkey, (string)time(), '', 'no');
+    $service = new Order_Service($client);
+
+    $service->complete_order_if_paid($order, (object)[
+        'res' => (object)[
+            'status' => 2,
+            'paymentReference' => 'TX123',
+            'bankName' => 'CBE Mobile',
+        ],
+    ]);
+
+    assert_same(0, $order->paymentCompleteCalls, 'Held completion lock should block payment_complete.');
+    assert_same('', $order->meta[Order_Service::META_COMPLETED_AT] ?? '', 'Held completion lock should not mark the order completed.');
+    delete_option($lockkey);
+
+    $service->complete_order_if_paid($order, (object)[
+        'res' => (object)[
+            'status' => 2,
+            'paymentReference' => 'TX123',
+            'bankName' => 'CBE Mobile',
+        ],
+    ]);
+
+    assert_same(1, $order->paymentCompleteCalls, 'Released completion lock should allow one payment_complete call.');
+    assert_true(($order->meta[Order_Service::META_COMPLETED_AT] ?? '') !== '', 'Released completion lock should mark completion.');
 }
 
 function test_supported_banks_and_payment_helpers(): void {
@@ -258,6 +314,7 @@ $tests = [
     'prepare payment create and reuse' => 'test_prepare_payment_create_and_reuse',
     'update unpaid changed existing bill' => 'test_update_unpaid_changed_existing_bill',
     'idempotent paid completion' => 'test_idempotent_paid_completion',
+    'completion lock blocks parallel completion' => 'test_completion_lock_blocks_parallel_completion',
     'supported banks and payment helpers' => 'test_supported_banks_and_payment_helpers',
 ];
 
