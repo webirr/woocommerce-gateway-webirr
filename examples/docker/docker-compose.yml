@@ -1,0 +1,57 @@
+services:
+  db:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+      MYSQL_ROOT_PASSWORD: wordpress
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pwordpress"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  wordpress:
+    image: wordpress:php8.2-apache
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+    ports:
+      - "${WEBIRR_WOOCOMMERCE_PORT:-8097}:80"
+    volumes:
+      - wp_data:/var/www/html
+      - ../..:/var/www/html/wp-content/plugins/woocommerce-gateway-webirr
+
+  cli:
+    image: wordpress:cli-2.10-php8.2
+    depends_on:
+      db:
+        condition: service_healthy
+      wordpress:
+        condition: service_started
+    user: "33:33"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WEBIRR_TEST_ENV_MERCHANT_ID: ${WEBIRR_TEST_ENV_MERCHANT_ID:-}
+      WEBIRR_TEST_ENV_API_KEY: ${WEBIRR_TEST_ENV_API_KEY:-}
+      WEBIRR_WOOCOMMERCE_PORT: ${WEBIRR_WOOCOMMERCE_PORT:-8097}
+    volumes:
+      - wp_data:/var/www/html
+      - ../..:/var/www/html/wp-content/plugins/woocommerce-gateway-webirr
+      - ./scripts:/scripts:ro
+
+volumes:
+  db_data:
+  wp_data:

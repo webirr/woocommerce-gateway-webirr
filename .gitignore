@@ -1,0 +1,11 @@
+.DS_Store
+.env
+.phpunit.cache/
+coverage/
+node_modules/
+vendor/
+wordpress/
+wp-content/
+*.log
+*.zip
+dist/
