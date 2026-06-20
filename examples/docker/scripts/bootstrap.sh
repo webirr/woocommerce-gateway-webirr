@@ -47,13 +47,13 @@ update_option("woocommerce_webirr_settings", $settings);
 echo "Configured WeBirr settings\n";
 '
 
-PRODUCT_ID=$(wp post list --post_type=product --name=webirr-demo-course --field=ID --format=ids)
+PRODUCT_ID=$(wp post list --post_type=product --name=webirr-demo-audio-book --field=ID --format=ids)
 if [ -z "$PRODUCT_ID" ]; then
   PRODUCT_ID=$(wp post create \
     --post_type=product \
     --post_status=publish \
-    --post_title="Moodle Course Enrollment" \
-    --post_name=webirr-demo-course \
+    --post_title="Sample Audio Book" \
+    --post_name=webirr-demo-audio-book \
     --porcelain)
 fi
 

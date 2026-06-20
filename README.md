@@ -99,7 +99,7 @@ At a glance, the payment flow is:
   method.
 - WooCommerce creates a pending order.
 - The plugin creates or resumes a WeBirr bill/invoice using a stable merchant
-  reference such as `wc_1_42`.
+  reference such as `wc_1_42_5f2f8d12-7e31-4e4e-a614-4be3b4e06c91`.
 - WooCommerce stores the WeBirr payment code and local payment state on the
   order.
 

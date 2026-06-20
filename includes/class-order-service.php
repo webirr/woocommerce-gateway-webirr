@@ -234,7 +234,7 @@ final class Order_Service {
 
         $site_id = function_exists('get_current_blog_id') ? (int)get_current_blog_id() : 1;
         $order_id = method_exists($order, 'get_id') ? (int)$order->get_id() : 0;
-        $reference = 'wc_' . $site_id . '_' . $order_id;
+        $reference = 'wc_' . $site_id . '_' . $order_id . '_' . $this->uuid();
 
         if (function_exists('apply_filters')) {
             $reference = (string)apply_filters('webirr_woocommerce_merchant_reference', $reference, $order);
@@ -244,6 +244,34 @@ final class Order_Service {
         $this->save($order);
 
         return $reference;
+    }
+
+    /**
+     * Generate a UUID-style suffix for new merchant references.
+     *
+     * @return string
+     */
+    private function uuid(): string {
+        if (function_exists('wp_generate_uuid4')) {
+            return (string)wp_generate_uuid4();
+        }
+
+        try {
+            $bytes = random_bytes(16);
+        } catch (\Exception $exception) {
+            $bytes = md5(uniqid('', true), true);
+        }
+
+        $hex = bin2hex($bytes);
+
+        return sprintf(
+            '%s-%s-%s-%s-%s',
+            substr($hex, 0, 8),
+            substr($hex, 8, 4),
+            substr($hex, 12, 4),
+            substr($hex, 16, 4),
+            substr($hex, 20, 12)
+        );
     }
 
     /**
@@ -444,4 +472,3 @@ final class Order_Service {
         return date($format === 'mysql' ? 'Y-m-d H:i:s' : $format);
     }
 }
-

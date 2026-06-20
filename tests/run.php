@@ -66,7 +66,7 @@ final class FakeOrder {
     }
 
     public function get_total(): string {
-        return '530.00';
+        return '640.00';
     }
 
     public function get_billing_first_name(): string {
@@ -144,13 +144,13 @@ function test_client_query_and_bill_payload(): void {
     assert_true(!str_contains($emptyMerchant->build_url('einvoice/api/banks'), 'merchant_id='), 'Empty merchant ID must not be sent.');
 
     $payload = $client->bill_payload([
-        'amount' => '530.00',
+        'amount' => '640.00',
         'customerCode' => '7',
         'customerName' => 'Elias',
         'customerPhone' => '0911000000',
         'time' => '2026-06-20 12:00',
         'description' => 'WooCommerce order 42',
-        'billReference' => 'wc_1_42',
+        'billReference' => 'wc_1_42_5f2f8d12-7e31-4e4e-a614-4be3b4e06c91',
         'merchantID' => 'from-bill',
         'extras' => [],
     ]);
@@ -172,7 +172,10 @@ function test_prepare_payment_create_and_reuse(): void {
     $result = $service->prepare_payment($order);
 
     assert_true((bool)$result['success'], 'Create flow should succeed.');
-    assert_same('wc_1_42', $result['merchantReference'], 'Stable merchant reference should be stored.');
+    assert_true(
+        preg_match('/^wc_1_42_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', (string)$result['merchantReference']) === 1,
+        'Stable merchant reference should include site, order, and UUID-style suffix.'
+    );
     assert_same('PAY123', $result['paymentCode'], 'Created payment code should be stored.');
     assert_same('GET', $calls[0]['method'], 'Recovery lookup should happen before create.');
     assert_same('POST', $calls[1]['method'], 'Create bill should be the last resort.');
@@ -264,4 +267,3 @@ foreach ($tests as $name => $test) {
 }
 
 echo "All tests passed.\n";
-

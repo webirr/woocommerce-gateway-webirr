@@ -81,9 +81,9 @@ function handle_api(string $path): void {
 
 function create_bill(): void {
     $payload = read_json_payload();
-    $amount = format_amount((string)($payload['amount'] ?? '530.00'));
+    $amount = format_amount((string)($payload['amount'] ?? '640.00'));
     $customername = trim((string)($payload['customerName'] ?? 'Elias'));
-    $description = trim((string)($payload['description'] ?? 'WooCommerce demo order'));
+    $description = trim((string)($payload['description'] ?? 'Sample audio book purchase'));
     $merchantreference = normalize_merchant_reference((string)($payload['merchantReference'] ?? default_merchant_reference()));
     $billreference = build_demo_bill_reference($merchantreference);
     $detailshash = details_hash($customername, $amount, $description);
@@ -94,7 +94,7 @@ function create_bill(): void {
         'customerName' => $customername !== '' ? $customername : 'Elias',
         'customerPhone' => '',
         'time' => date('Y-m-d H:i'),
-        'description' => $description !== '' ? $description : 'WooCommerce demo order',
+        'description' => $description !== '' ? $description : 'Sample audio book purchase',
         'billReference' => $billreference,
         'extras' => [
             'source' => 'woocommerce-standalone-demo',
@@ -431,7 +431,26 @@ function normalize_merchant_reference(string $merchantreference): string {
 }
 
 function default_merchant_reference(): string {
-    return 'woo/' . date('Y/m/d') . '/72627836';
+    return 'woo-demo-' . date('YmdHis') . '-' . demo_uuid();
+}
+
+function demo_uuid(): string {
+    try {
+        $bytes = random_bytes(16);
+    } catch (Exception $exception) {
+        $bytes = md5(uniqid('', true), true);
+    }
+
+    $hex = bin2hex($bytes);
+
+    return sprintf(
+        '%s-%s-%s-%s-%s',
+        substr($hex, 0, 8),
+        substr($hex, 8, 4),
+        substr($hex, 12, 4),
+        substr($hex, 16, 4),
+        substr($hex, 20, 12)
+    );
 }
 
 function build_demo_bill_reference(string $merchantreference): string {
@@ -826,11 +845,11 @@ function render_page(): void {
             </div>
             <div class="field">
                 <label for="amount">Amount</label>
-                <input id="amount" value="530.00" inputmode="decimal">
+                <input id="amount" value="640.00" inputmode="decimal">
             </div>
             <div class="field">
                 <label for="description">Description</label>
-                <input id="description" value="WooCommerce demo order">
+                <input id="description" value="Sample audio book purchase">
             </div>
             <div class="field">
                 <label for="merchantReference">Merchant reference</label>
@@ -913,8 +932,8 @@ function render_page(): void {
             function values() {
                 return {
                     customerName: document.getElementById('customerName').value.trim() || 'Elias',
-                    amount: document.getElementById('amount').value.trim() || '530.00',
-                    description: document.getElementById('description').value.trim() || 'WooCommerce demo order',
+                    amount: document.getElementById('amount').value.trim() || '640.00',
+                    description: document.getElementById('description').value.trim() || 'Sample audio book purchase',
                     merchantReference: document.getElementById('merchantReference').value.trim()
                 };
             }
