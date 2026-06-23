@@ -155,7 +155,7 @@ function client_with_transport(array &$calls, array $responses, string $merchant
 function test_client_query_and_bill_payload(): void {
     $client = new Client('0305', 'secret key', 'TestEnv', new Logger(false, 'secret key'));
     $url = $client->build_url('einvoice/api/paymentStatus', ['wbc_code' => '123 456']);
-    assert_true(str_contains($url, 'https://api.webirr.net/einvoice/api/paymentStatus?'), 'TestEnv base URL should be api.webirr.net.');
+    assert_true(str_contains($url, 'https://api.webirr.dev/einvoice/api/paymentStatus?'), 'TestEnv base URL should be api.webirr.dev.');
     assert_true(str_contains($url, 'api_key=secret%20key'), 'API key query parameter should be encoded.');
     assert_true(str_contains($url, 'merchant_id=0305'), 'merchant_id query parameter should be sent when configured.');
     assert_true(str_contains($url, 'wbc_code=123%20456'), 'endpoint query parameter should be encoded.');
@@ -178,6 +178,33 @@ function test_client_query_and_bill_payload(): void {
     assert_same('0305', $payload['merchantID'], 'Configured merchant ID should override bill merchantID.');
     assert_same('0911000000', $payload['customerPhone'], 'Customer phone should be preserved.');
     assert_same('{}', json_encode($payload['extras']), 'Empty extras should serialize as JSON object.');
+}
+
+function test_gateway_url_override_applies_to_testenv_only(): void {
+    $previous = getenv('GATEWAY_URL');
+    putenv('GATEWAY_URL=https://local-gateway.example/');
+
+    try {
+        $test = new Client('0305', 'secret key', 'TestEnv', new Logger(false, 'secret key'));
+        $testurl = $test->build_url('einvoice/api/paymentStatus', ['wbc_code' => '123']);
+        assert_true(
+            str_contains($testurl, 'https://local-gateway.example/einvoice/api/paymentStatus?'),
+            'GATEWAY_URL should override TestEnv only.'
+        );
+
+        $prod = new Client('0305', 'secret key', 'ProdEnv', new Logger(false, 'secret key'));
+        $produrl = $prod->build_url('einvoice/api/paymentStatus', ['wbc_code' => '123']);
+        assert_true(
+            str_contains($produrl, 'https://api.webirr.net:8080/einvoice/api/paymentStatus?'),
+            'ProdEnv base URL should ignore GATEWAY_URL.'
+        );
+    } finally {
+        if ($previous === false) {
+            putenv('GATEWAY_URL');
+        } else {
+            putenv('GATEWAY_URL=' . $previous);
+        }
+    }
 }
 
 function test_prepare_payment_create_and_reuse(): void {
@@ -311,6 +338,7 @@ function test_supported_banks_and_payment_helpers(): void {
 
 $tests = [
     'client query and bill payload' => 'test_client_query_and_bill_payload',
+    'gateway url override applies to testenv only' => 'test_gateway_url_override_applies_to_testenv_only',
     'prepare payment create and reuse' => 'test_prepare_payment_create_and_reuse',
     'update unpaid changed existing bill' => 'test_update_unpaid_changed_existing_bill',
     'idempotent paid completion' => 'test_idempotent_paid_completion',

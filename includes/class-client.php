@@ -13,7 +13,7 @@ defined('ABSPATH') || exit;
  * Dependency-free WeBirr client for WordPress/WooCommerce hosts.
  */
 final class Client {
-    private const TEST_BASE_URL = 'https://api.webirr.net';
+    private const TEST_BASE_URL = 'https://api.webirr.dev';
     private const PROD_BASE_URL = 'https://api.webirr.net:8080';
 
     /** @var string */
@@ -47,9 +47,31 @@ final class Client {
     ) {
         $this->merchant_id = trim($merchant_id);
         $this->api_key = trim($api_key);
-        $this->base_url = $environment === 'ProdEnv' ? self::PROD_BASE_URL : self::TEST_BASE_URL;
+        $this->base_url = $this->resolve_base_url($environment);
         $this->logger = $logger ?: new Logger(false, $this->api_key);
         $this->transport = $transport;
+    }
+
+    /**
+     * Resolve gateway base URL.
+     *
+     * The local override is honored only in TestEnv so production remains fixed
+     * to the official WeBirr gateway.
+     *
+     * @param string $environment TestEnv or ProdEnv.
+     * @return string Gateway base URL without a trailing slash.
+     */
+    private function resolve_base_url(string $environment): string {
+        if ($environment === 'ProdEnv') {
+            return self::PROD_BASE_URL;
+        }
+
+        $gateway_url = trim((string)(getenv('GATEWAY_URL') ?: ''));
+        if ($gateway_url !== '') {
+            return rtrim($gateway_url, '/');
+        }
+
+        return self::TEST_BASE_URL;
     }
 
     /**
@@ -283,4 +305,3 @@ final class Client {
         ];
     }
 }
-
