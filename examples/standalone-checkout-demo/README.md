@@ -3,6 +3,8 @@
 This standalone PHP demo shows the WeBirr online checkout pattern without
 installing WordPress or WooCommerce.
 
+![WeBirr WooCommerce standalone checkout flow](screenshots/woocommerce-standalone-journey-four-steps.png)
+
 The demo shares the actual WooCommerce plugin's WeBirr client classes:
 
 ```text
@@ -61,10 +63,14 @@ The first screen shows 10 audio books and a customer name field defaulting to
 ID and customer name; the server resolves amount and description from the demo
 catalog.
 
+![Audio book catalog](screenshots/woocommerce-standalone-01-catalog.png)
+
 ### 2. Checkout Review
 
 The next screen shows the checkout summary before creating the WeBirr bill and
 payment code. The customer can continue with checkout, go back, or cancel.
+
+![Checkout review](screenshots/woocommerce-standalone-02-checkout-review.png)
 
 ### 3. Payment Code Display
 
@@ -72,11 +78,15 @@ When checkout starts, the server creates or resumes the WeBirr bill and displays
 the **WeBirr Payment Code**. The browser does not call WeBirr directly; it calls
 the local demo server, and the local server calls WeBirr.
 
+![Payment code display](screenshots/woocommerce-standalone-03-payment-code.png)
+
 ### 4. Payment Confirmation
 
 After payment is received, the screen changes to the confirmation view and shows
 the payment reference and the channel used to pay.
 The customer can then download a `.txt` digital audio book purchase receipt.
+
+![Payment confirmation](screenshots/woocommerce-standalone-04-payment-confirmed.png)
 
 ## How It Compares To The Plugin
 

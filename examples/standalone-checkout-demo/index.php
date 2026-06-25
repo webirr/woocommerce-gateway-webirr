@@ -298,6 +298,17 @@ function supported_banks_response(Client $client): array {
     return Supported_Banks::from_response($response);
 }
 
+function supported_banks_preview(): array {
+    return [
+        ['name' => 'CBE Mobile'],
+        ['name' => 'CBE Birr'],
+        ['name' => 'Awash Birr'],
+        ['name' => 'Telebirr'],
+        ['name' => 'M-Pesa'],
+        ['name' => 'Coopay Ebirr'],
+    ];
+}
+
 function render_payment_instruction_items(array $banks): void {
     if ($banks === []) {
         ?>
@@ -633,8 +644,11 @@ function json_response(array $payload, int $status = 200): void {
 }
 
 function render_page(): void {
+    $preview = (string)($_GET['preview'] ?? '');
     $defaultreference = default_merchant_reference();
     $catalog = demo_catalog();
+    $previewbanks = $preview === 'journey' ? supported_banks_preview() : [];
+    $previewissuer = trim((string)($previewbanks[0]['name'] ?? '')) ?: 'Supported WeBirr App';
     ?>
 <!doctype html>
 <html lang="en">
@@ -674,6 +688,9 @@ function render_page(): void {
             margin: 0 auto;
             padding: 32px 20px;
         }
+        .shell-wide {
+            max-width: 1240px;
+        }
         .brand {
             display: grid;
             grid-template-columns: 52px minmax(0, 1fr);
@@ -696,6 +713,25 @@ function render_page(): void {
             border: 1px solid var(--line);
             border-radius: 8px;
             padding: 22px;
+        }
+        .journey-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 0.9fr) 24px minmax(0, 0.9fr) 24px minmax(280px, 1.25fr) 24px minmax(0, 1.05fr);
+            gap: 8px;
+            align-items: stretch;
+        }
+        .journey-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .panel-title {
+            margin: 0 0 16px;
+            font-size: 16px;
+            font-weight: 700;
         }
         .stage[hidden] {
             display: none;
@@ -887,6 +923,56 @@ function render_page(): void {
             margin: 0 0 12px;
             font-size: 22px;
         }
+        .journey-panel {
+            min-height: 360px;
+        }
+        .journey-panel .summary {
+            grid-template-columns: 1fr;
+            gap: 4px;
+        }
+        .journey-panel .summary dt {
+            font-size: 13px;
+        }
+        .journey-panel .summary dd {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .journey-panel .payment-code {
+            margin-top: 0;
+        }
+        .journey-panel .payment-code-value {
+            font-size: 30px;
+        }
+        .journey-panel .instructions {
+            padding: 10px;
+            font-size: 12px;
+        }
+        .journey-panel .instructions li {
+            padding: 6px 8px;
+        }
+        .journey-confirmed .confirmation {
+            margin-top: 0;
+        }
+        .journey-confirmed .confirmation h2 {
+            font-size: 20px;
+        }
+        .journey-confirmed .summary dd {
+            font-size: 13px;
+            white-space: nowrap;
+        }
+        .success-check {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            margin-bottom: 12px;
+            border-radius: 50%;
+            background: #198754;
+            color: #fff;
+            font-size: 24px;
+            font-weight: 700;
+        }
         .error {
             margin-top: 14px;
             color: #991b1b;
@@ -903,16 +989,108 @@ function render_page(): void {
             .payment-code-value {
                 font-size: 28px;
             }
+            .journey-layout {
+                grid-template-columns: 1fr;
+            }
+            .journey-arrow {
+                min-height: 24px;
+                transform: rotate(90deg);
+            }
         }
     </style>
 </head>
 <body>
-    <main class="shell">
+    <main class="shell<?php echo $preview === 'journey' ? ' shell-wide' : ''; ?>">
         <div class="brand">
             <img src="/assets/images/webirr-cute-logo.png" alt="WeBirr">
             <h1>WeBirr Online Checkout</h1>
         </div>
 
+        <?php if ($preview === 'journey') { ?>
+        <div class="journey-layout">
+            <section class="panel journey-panel">
+                <div class="panel-title">Audio Book Catalog</div>
+                <dl class="summary">
+                    <dt>Customer</dt>
+                    <dd>Elias</dd>
+                    <dt>Audio book</dt>
+                    <dd>Modern Business Audio Book</dd>
+                    <dt>Amount</dt>
+                    <dd>640.00 ETB</dd>
+                    <dt>Description</dt>
+                    <dd>Digital audio book purchase</dd>
+                    <dt>Merchant reference</dt>
+                    <dd><?php echo htmlspecialchars($defaultreference, ENT_QUOTES, 'UTF-8'); ?></dd>
+                </dl>
+                <div class="button-row">
+                    <button class="primary" type="button">Buy</button>
+                </div>
+            </section>
+            <div class="journey-arrow" aria-hidden="true">&rarr;</div>
+            <section class="panel journey-panel">
+                <div class="panel-title">Checkout</div>
+                <dl class="summary">
+                    <dt>Customer</dt>
+                    <dd>Elias</dd>
+                    <dt>Amount</dt>
+                    <dd>640.00 ETB</dd>
+                    <dt>Audio book</dt>
+                    <dd>Modern Business Audio Book</dd>
+                    <dt>Description</dt>
+                    <dd>Digital audio book purchase</dd>
+                    <dt>Merchant reference</dt>
+                    <dd><?php echo htmlspecialchars($defaultreference, ENT_QUOTES, 'UTF-8'); ?></dd>
+                </dl>
+                <div class="button-row">
+                    <button class="primary" type="button">Continue to payment</button>
+                    <button class="secondary" type="button">Back</button>
+                </div>
+            </section>
+            <div class="journey-arrow" aria-hidden="true">&rarr;</div>
+            <section class="panel journey-panel">
+                <div class="payment-code">
+                    <div class="payment-code-title">WeBirr Payment Code</div>
+                    <div class="payment-code-value">175 431 619</div>
+                </div>
+                <div class="status">
+                    <span class="spinner" aria-hidden="true"></span>
+                    <span>Payment not received yet.</span>
+                </div>
+                <div class="instructions">
+                    <h2>Payment Instruction</h2>
+                    <ul>
+                        <?php render_payment_instruction_items($previewbanks); ?>
+                    </ul>
+                </div>
+                <dl class="summary">
+                    <dt>Merchant reference</dt>
+                    <dd><?php echo htmlspecialchars($defaultreference, ENT_QUOTES, 'UTF-8'); ?></dd>
+                    <dt>Payment Status</dt>
+                    <dd>pending</dd>
+                </dl>
+            </section>
+            <div class="journey-arrow" aria-hidden="true">&rarr;</div>
+            <section class="panel journey-panel journey-confirmed">
+                <div class="confirmation">
+                    <div class="success-check" aria-hidden="true">&#10003;</div>
+                    <h2>Payment Confirmed</h2>
+                    <dl class="summary">
+                        <dt>Customer</dt>
+                        <dd>Elias</dd>
+                        <dt>Amount</dt>
+                        <dd>640.00 ETB</dd>
+                        <dt>Payment Reference</dt>
+                        <dd>TX70e78862148f4c249606</dd>
+                        <dt>Paid Via</dt>
+                        <dd><?php echo htmlspecialchars($previewissuer, ENT_QUOTES, 'UTF-8'); ?></dd>
+                    </dl>
+                </div>
+                <div class="button-row">
+                    <button class="primary" type="button">Download receipt</button>
+                </div>
+            </section>
+        </div>
+        <?php } else { ?>
         <section class="panel stage" data-stage="entry">
             <div class="field">
                 <label for="customerName">Customer</label>
@@ -1011,8 +1189,10 @@ function render_page(): void {
                 <button class="primary" type="button" data-action="restart">New checkout</button>
             </div>
         </section>
+        <?php } ?>
     </main>
 
+    <?php if ($preview !== 'journey') { ?>
     <script>
         (function () {
             var currentPaymentId = 0;
@@ -1131,7 +1311,7 @@ function render_page(): void {
                 list.innerHTML = '';
                 if (!banks.length) {
                     var fallback = document.createElement('li');
-                    fallback.textContent = 'Use one of this merchant\\'s supported WeBirr banking or wallet apps.';
+                    fallback.textContent = "Use one of this merchant's supported WeBirr banking or wallet apps.";
                     list.appendChild(fallback);
                     return;
                 }
@@ -1241,6 +1421,7 @@ function render_page(): void {
             });
         }());
     </script>
+    <?php } ?>
 </body>
 </html>
     <?php
