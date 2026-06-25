@@ -47,23 +47,47 @@ update_option("woocommerce_webirr_settings", $settings);
 echo "Configured WeBirr settings\n";
 '
 
-PRODUCT_ID=$(wp post list --post_type=product --name=webirr-demo-audio-book --field=ID --format=ids)
-if [ -z "$PRODUCT_ID" ]; then
-  PRODUCT_ID=$(wp post create \
-    --post_type=product \
-    --post_status=publish \
-    --post_title="Sample Audio Book" \
-    --post_name=webirr-demo-audio-book \
-    --porcelain)
-fi
+FIRST_PRODUCT_ID=""
+seed_product() {
+  slug="$1"
+  title="$2"
+  price="$3"
 
-wp post meta update "$PRODUCT_ID" _regular_price "640"
-wp post meta update "$PRODUCT_ID" _price "640"
-wp post meta update "$PRODUCT_ID" _stock_status "instock"
-wp post meta update "$PRODUCT_ID" _virtual "yes"
-wp post meta update "$PRODUCT_ID" _sold_individually "yes"
+  product_id=$(wp post list --post_type=product --name="$slug" --field=ID --format=ids)
+  if [ -z "$product_id" ]; then
+    product_id=$(wp post create \
+      --post_type=product \
+      --post_status=publish \
+      --post_title="$title" \
+      --post_name="$slug" \
+      --post_content="Digital audio book purchase." \
+      --porcelain)
+  fi
+
+  wp post meta update "$product_id" _regular_price "$price" >/dev/null
+  wp post meta update "$product_id" _price "$price" >/dev/null
+  wp post meta update "$product_id" _stock_status "instock" >/dev/null
+  wp post meta update "$product_id" _virtual "yes" >/dev/null
+  wp post meta update "$product_id" _downloadable "yes" >/dev/null
+  wp post meta update "$product_id" _sold_individually "yes" >/dev/null
+
+  if [ -z "$FIRST_PRODUCT_ID" ]; then
+    FIRST_PRODUCT_ID="$product_id"
+  fi
+}
+
+seed_product webirr-modern-business-audio-book "Modern Business Audio Book" "640"
+seed_product webirr-leadership-field-notes "Leadership Field Notes" "580"
+seed_product webirr-practical-finance-basics "Practical Finance Basics" "720"
+seed_product webirr-startup-operations-guide "Startup Operations Guide" "690"
+seed_product webirr-customer-service-playbook "Customer Service Playbook" "510"
+seed_product webirr-digital-commerce-lessons "Digital Commerce Lessons" "760"
+seed_product webirr-project-delivery-habits "Project Delivery Habits" "550"
+seed_product webirr-retail-growth-stories "Retail Growth Stories" "615"
+seed_product webirr-resilient-teams "Resilient Teams" "675"
+seed_product webirr-merchant-payments-101 "Merchant Payments 101" "705"
 
 wp rewrite flush
 
-echo "Demo product: $SITE_URL/?add-to-cart=$PRODUCT_ID"
+echo "Demo product: $SITE_URL/?add-to-cart=$FIRST_PRODUCT_ID"
 echo "Admin: $SITE_URL/wp-admin admin/admin"

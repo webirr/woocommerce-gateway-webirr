@@ -180,7 +180,8 @@ TestEnv credentials.
 ### WooCommerce Checkout Example
 
 The Docker example starts WordPress, installs WooCommerce, mounts this plugin,
-creates a demo product, and configures WeBirr from environment variables.
+creates a 10-item audio book catalog, and configures WeBirr from environment
+variables.
 
 ```bash
 cd examples/docker
@@ -190,7 +191,7 @@ docker compose up -d
 docker compose run --rm cli sh /scripts/bootstrap.sh
 ```
 
-Open `http://localhost:8097` and test a checkout with the demo product. If that
+Open `http://localhost:8097` and test a checkout with a demo product. If that
 port is busy, set `WEBIRR_WOOCOMMERCE_PORT` to another local port.
 
 The Docker example switches WooCommerce's generated cart and checkout pages to
@@ -208,6 +209,8 @@ when the customer closes the browser.
 `examples/standalone-checkout-demo` is a standalone PHP demo app. It shares the
 actual plugin client classes in `includes/`, but it has its own HTML,
 JavaScript, demo API routes, and SQLite demo storage.
+It uses the same audio book catalog story and offers a `.txt` receipt download
+after paid confirmation.
 
 Run it with Docker:
 

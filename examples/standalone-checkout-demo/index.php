@@ -81,9 +81,18 @@ function handle_api(string $path): void {
 
 function create_bill(): void {
     $payload = read_json_payload();
-    $amount = format_amount((string)($payload['amount'] ?? '640.00'));
-    $customername = trim((string)($payload['customerName'] ?? 'Elias'));
-    $description = trim((string)($payload['description'] ?? 'Sample audio book purchase'));
+    $book = find_demo_book((string)($payload['bookId'] ?? ''));
+    if (!$book) {
+        json_response(['success' => false, 'error' => 'Choose a valid audio book.'], 400);
+    }
+
+    $amount = format_amount((string)$book['amount']);
+    $customername = trim((string)($payload['customerName'] ?? ''));
+    if ($customername === '') {
+        json_response(['success' => false, 'error' => 'Customer name is required.'], 400);
+    }
+
+    $description = (string)$book['title'] . ' - ' . (string)$book['description'];
     $merchantreference = normalize_merchant_reference((string)($payload['merchantReference'] ?? default_merchant_reference()));
     $billreference = build_demo_bill_reference($merchantreference);
     $detailshash = details_hash($customername, $amount, $description);
@@ -273,6 +282,7 @@ function payment_code_response(array $payment, string $operation, Client $client
         'amount' => (string)$payment['amount'],
         'customerName' => (string)$payment['customer_name'],
         'description' => (string)$payment['description'],
+        'itemTitle' => item_title_from_description((string)$payment['description']),
         'status' => (int)$payment['status'],
         'operation' => $operation,
         'supportedBanks' => supported_banks_response($client),
@@ -431,7 +441,7 @@ function normalize_merchant_reference(string $merchantreference): string {
 }
 
 function default_merchant_reference(): string {
-    return 'woo-demo-' . date('YmdHis') . '-' . demo_uuid();
+    return 'ord_' . substr(str_replace('-', '', demo_uuid()), 0, 8);
 }
 
 function demo_uuid(): string {
@@ -451,6 +461,36 @@ function demo_uuid(): string {
         substr($hex, 16, 4),
         substr($hex, 20, 12)
     );
+}
+
+function demo_catalog(): array {
+    return [
+        ['id' => 'audio-book-001', 'title' => 'Modern Business Audio Book', 'description' => 'Digital audio book purchase', 'amount' => '640.00'],
+        ['id' => 'audio-book-002', 'title' => 'Leadership Field Notes', 'description' => 'Digital audio book purchase', 'amount' => '580.00'],
+        ['id' => 'audio-book-003', 'title' => 'Practical Finance Basics', 'description' => 'Digital audio book purchase', 'amount' => '720.00'],
+        ['id' => 'audio-book-004', 'title' => 'Startup Operations Guide', 'description' => 'Digital audio book purchase', 'amount' => '690.00'],
+        ['id' => 'audio-book-005', 'title' => 'Customer Service Playbook', 'description' => 'Digital audio book purchase', 'amount' => '510.00'],
+        ['id' => 'audio-book-006', 'title' => 'Digital Commerce Lessons', 'description' => 'Digital audio book purchase', 'amount' => '760.00'],
+        ['id' => 'audio-book-007', 'title' => 'Project Delivery Habits', 'description' => 'Digital audio book purchase', 'amount' => '550.00'],
+        ['id' => 'audio-book-008', 'title' => 'Retail Growth Stories', 'description' => 'Digital audio book purchase', 'amount' => '615.00'],
+        ['id' => 'audio-book-009', 'title' => 'Resilient Teams', 'description' => 'Digital audio book purchase', 'amount' => '675.00'],
+        ['id' => 'audio-book-010', 'title' => 'Merchant Payments 101', 'description' => 'Digital audio book purchase', 'amount' => '705.00'],
+    ];
+}
+
+function find_demo_book(string $bookid): ?array {
+    foreach (demo_catalog() as $book) {
+        if ($book['id'] === $bookid) {
+            return $book;
+        }
+    }
+
+    return null;
+}
+
+function item_title_from_description(string $description): string {
+    $parts = explode(' - ', $description, 2);
+    return trim($parts[0]) !== '' ? trim($parts[0]) : 'Audio Book';
 }
 
 function build_demo_bill_reference(string $merchantreference): string {
@@ -594,6 +634,7 @@ function json_response(array $payload, int $status = 200): void {
 
 function render_page(): void {
     $defaultreference = default_merchant_reference();
+    $catalog = demo_catalog();
     ?>
 <!doctype html>
 <html lang="en">
@@ -708,6 +749,16 @@ function render_page(): void {
             font-weight: 700;
             cursor: pointer;
         }
+        a.primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 40px;
+            border-radius: 6px;
+            padding: 9px 14px;
+            text-decoration: none;
+            font-weight: 700;
+        }
         button:disabled {
             opacity: 0.55;
             cursor: wait;
@@ -808,6 +859,30 @@ function render_page(): void {
             background: var(--success-bg);
             padding: 20px;
         }
+        .catalog-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+            margin-top: 18px;
+        }
+        .book-card {
+            display: grid;
+            gap: 14px;
+            align-content: space-between;
+            min-height: 210px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 16px;
+            background: white;
+        }
+        .book-card h2 {
+            margin: 0 0 8px;
+            font-size: 18px;
+        }
+        .book-card p {
+            margin: 0 0 10px;
+            color: var(--muted);
+        }
         .confirmation h2 {
             margin: 0 0 12px;
             font-size: 22px;
@@ -843,20 +918,25 @@ function render_page(): void {
                 <label for="customerName">Customer</label>
                 <input id="customerName" value="Elias" autocomplete="name">
             </div>
-            <div class="field">
-                <label for="amount">Amount</label>
-                <input id="amount" value="640.00" inputmode="decimal">
-            </div>
-            <div class="field">
-                <label for="description">Description</label>
-                <input id="description" value="Sample audio book purchase">
-            </div>
-            <div class="field">
-                <label for="merchantReference">Merchant reference</label>
-                <input id="merchantReference" value="<?php echo htmlspecialchars($defaultreference, ENT_QUOTES, 'UTF-8'); ?>">
-            </div>
-            <div class="button-row">
-                <button class="primary" type="button" data-action="review">Checkout</button>
+            <div class="catalog-grid">
+                <?php foreach ($catalog as $book): ?>
+                    <article class="book-card">
+                        <div>
+                            <h2><?php echo htmlspecialchars((string)$book['title'], ENT_QUOTES, 'UTF-8'); ?></h2>
+                            <p><?php echo htmlspecialchars((string)$book['description'], ENT_QUOTES, 'UTF-8'); ?></p>
+                            <strong><?php echo htmlspecialchars((string)$book['amount'], ENT_QUOTES, 'UTF-8'); ?> ETB</strong>
+                        </div>
+                        <button
+                            class="primary"
+                            type="button"
+                            data-action="review"
+                            data-book-id="<?php echo htmlspecialchars((string)$book['id'], ENT_QUOTES, 'UTF-8'); ?>"
+                            data-book-title="<?php echo htmlspecialchars((string)$book['title'], ENT_QUOTES, 'UTF-8'); ?>"
+                            data-book-amount="<?php echo htmlspecialchars((string)$book['amount'], ENT_QUOTES, 'UTF-8'); ?>"
+                            data-book-description="<?php echo htmlspecialchars((string)$book['description'], ENT_QUOTES, 'UTF-8'); ?>"
+                        >Buy</button>
+                    </article>
+                <?php endforeach; ?>
             </div>
         </section>
 
@@ -866,6 +946,8 @@ function render_page(): void {
                 <dd data-review="customerName"></dd>
                 <dt>Amount</dt>
                 <dd data-review="amount"></dd>
+                <dt>Audio book</dt>
+                <dd data-review="itemTitle"></dd>
                 <dt>Description</dt>
                 <dd data-review="description"></dd>
                 <dt>Merchant reference</dt>
@@ -884,6 +966,8 @@ function render_page(): void {
                 <dd data-payment="customerName"></dd>
                 <dt>Amount</dt>
                 <dd data-payment="amount"></dd>
+                <dt>Audio book</dt>
+                <dd data-payment="itemTitle"></dd>
                 <dt>Merchant reference</dt>
                 <dd data-payment="merchantReference"></dd>
             </dl>
@@ -912,6 +996,10 @@ function render_page(): void {
             <div class="confirmation">
                 <h2>Payment Confirmed</h2>
                 <dl class="summary">
+                    <dt>Customer</dt>
+                    <dd data-confirmed-customer></dd>
+                    <dt>Amount</dt>
+                    <dd data-confirmed-amount></dd>
                     <dt>Payment Reference</dt>
                     <dd data-confirmed-reference></dd>
                     <dt>Paid Via</dt>
@@ -919,6 +1007,7 @@ function render_page(): void {
                 </dl>
             </div>
             <div class="button-row">
+                <a class="primary" href="#" data-receipt-download download="webirr-audiobook-receipt.txt">Download receipt</a>
                 <button class="primary" type="button" data-action="restart">New checkout</button>
             </div>
         </section>
@@ -928,13 +1017,18 @@ function render_page(): void {
         (function () {
             var currentPaymentId = 0;
             var pollTimer = null;
+            var selectedBook = null;
+            var currentCheckout = null;
+            var currentMerchantReference = '';
 
             function values() {
                 return {
-                    customerName: document.getElementById('customerName').value.trim() || 'Elias',
-                    amount: document.getElementById('amount').value.trim() || '640.00',
-                    description: document.getElementById('description').value.trim() || 'Sample audio book purchase',
-                    merchantReference: document.getElementById('merchantReference').value.trim()
+                    customerName: document.getElementById('customerName').value.trim(),
+                    bookId: selectedBook ? selectedBook.id : '',
+                    itemTitle: selectedBook ? selectedBook.title : '',
+                    amount: selectedBook ? selectedBook.amount : '',
+                    description: selectedBook ? selectedBook.description : '',
+                    merchantReference: currentMerchantReference
                 };
             }
 
@@ -977,8 +1071,22 @@ function render_page(): void {
                 });
             }
 
-            function review() {
+            function review(button) {
+                var customerName = document.getElementById('customerName').value.trim();
+                if (!customerName) {
+                    alert('Customer name is required.');
+                    document.getElementById('customerName').focus();
+                    return;
+                }
+                selectedBook = {
+                    id: button.getAttribute('data-book-id') || '',
+                    title: button.getAttribute('data-book-title') || '',
+                    amount: button.getAttribute('data-book-amount') || '',
+                    description: button.getAttribute('data-book-description') || ''
+                };
+                currentMerchantReference = newMerchantReference();
                 var data = values();
+                data.amount = data.amount + ' ETB';
                 fill('review', data);
                 setError('[data-error]', '');
                 show('review');
@@ -992,10 +1100,17 @@ function render_page(): void {
                 request('/api/create-bill', data)
                     .then(function (body) {
                         currentPaymentId = body.paymentId;
-                        fill('payment', {
+                        currentCheckout = Object.assign({}, body, {
                             customerName: body.customerName || data.customerName,
                             amount: body.amount || data.amount,
+                            itemTitle: body.itemTitle || data.itemTitle,
                             merchantReference: body.merchantReference || data.merchantReference
+                        });
+                        fill('payment', {
+                            customerName: currentCheckout.customerName,
+                            amount: currentCheckout.amount + ' ETB',
+                            itemTitle: currentCheckout.itemTitle,
+                            merchantReference: currentCheckout.merchantReference
                         });
                         document.querySelector('[data-payment-code]').textContent = body.paymentCode || '';
                         renderInstructions(body.supportedBanks || []);
@@ -1057,8 +1172,11 @@ function render_page(): void {
                     .then(function (body) {
                         if (body.complete) {
                             clearTimeout(pollTimer);
+                            document.querySelector('[data-confirmed-customer]').textContent = currentCheckout.customerName || '';
+                            document.querySelector('[data-confirmed-amount]').textContent = (currentCheckout.amount || '') + ' ETB';
                             document.querySelector('[data-confirmed-reference]').textContent = body.paymentReference || '';
                             document.querySelector('[data-confirmed-paid-via]').textContent = body.paidVia || '';
+                            configureReceipt(body);
                             show('confirmed');
                             return;
                         }
@@ -1075,13 +1193,42 @@ function render_page(): void {
             function restart() {
                 clearTimeout(pollTimer);
                 currentPaymentId = 0;
+                currentCheckout = null;
+                selectedBook = null;
+                currentMerchantReference = '';
                 show('entry');
+            }
+
+            function newMerchantReference() {
+                var random = Math.floor(Math.random() * 0xffffffff).toString(16).padStart(8, '0');
+                return 'ord_' + random;
+            }
+
+            function configureReceipt(status) {
+                var lines = [
+                    'WeBirr Online Checkout Demo',
+                    '----------------------------',
+                    'Digital Audio Book Purchase Receipt',
+                    '',
+                    'Customer Name: ' + (currentCheckout.customerName || ''),
+                    'Audio Book Title: ' + (currentCheckout.itemTitle || ''),
+                    'Amount: ' + (currentCheckout.amount || '') + ' ETB',
+                    'Merchant Reference: ' + (currentCheckout.merchantReference || ''),
+                    'WeBirr Payment Code: ' + (currentCheckout.paymentCode || ''),
+                    'Payment Reference: ' + (status.paymentReference || ''),
+                    'Paid Via: ' + (status.paidVia || ''),
+                    'Demo Download Access: ' + (currentCheckout.itemTitle || ''),
+                    ''
+                ];
+                var link = document.querySelector('[data-receipt-download]');
+                link.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(lines.join('\\n'));
+                link.download = (currentCheckout.merchantReference || 'webirr') + '-receipt.txt';
             }
 
             document.addEventListener('click', function (event) {
                 var action = event.target && event.target.getAttribute('data-action');
                 if (action === 'review') {
-                    review();
+                    review(event.target);
                 } else if (action === 'back') {
                     show('entry');
                 } else if (action === 'create') {

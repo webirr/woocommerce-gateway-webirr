@@ -11,7 +11,8 @@ and release checks before packaging the plugin.
 - WordPress and WooCommerce running in Docker.
 - The actual WeBirr WooCommerce plugin mounted into
   `wp-content/plugins/woocommerce-gateway-webirr`.
-- WooCommerce configured with a demo product and classic checkout pages.
+- WooCommerce configured with a 10-item audio book catalog and classic checkout
+  pages.
 - TestEnv merchant credentials read from local environment variables.
 - WeBirr selected as the payment method during checkout.
 - A real WeBirr Payment Code page with merchant-supported payment instructions.
@@ -30,8 +31,9 @@ docker compose up -d
 docker compose run --rm cli sh /scripts/bootstrap.sh
 ```
 
-Open the demo product URL printed by the bootstrap script, add the product to
-cart, and choose **WeBirr** at checkout.
+Open the demo product URL printed by the bootstrap script, add an audio book to
+cart, and choose **WeBirr** at checkout. The script also creates additional
+audio book products so the store looks like a small catalog.
 
 Default site URL:
 

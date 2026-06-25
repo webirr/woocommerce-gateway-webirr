@@ -54,11 +54,12 @@ Open `http://127.0.0.1:8095/`.
 
 ## Checkout Flow
 
-### 1. Demo Data Entry
+### 1. Audio Book Catalog
 
-The first screen starts with editable default demo values: customer, amount,
-description, and merchant reference. The merchant reference is the stable
-payable reference used by the demo for retry and recovery.
+The first screen shows 10 audio books and a customer name field defaulting to
+`Elias`. Customer name cannot be empty. The browser sends only the selected book
+ID and customer name; the server resolves amount and description from the demo
+catalog.
 
 ### 2. Checkout Review
 
@@ -75,6 +76,7 @@ the local demo server, and the local server calls WeBirr.
 
 After payment is received, the screen changes to the confirmation view and shows
 the payment reference and the channel used to pay.
+The customer can then download a `.txt` digital audio book purchase receipt.
 
 ## How It Compares To The Plugin
 
