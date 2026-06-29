@@ -1,9 +1,14 @@
 # WeBirr Gateway for WooCommerce
 
-![WeBirr WooCommerce online checkout flow](examples/docker/screenshots/woocommerce-online-checkout-journey.png)
+![WeBirr WooCommerce catalog-first checkout flow](examples/standalone-checkout-demo/screenshots/woocommerce-standalone-journey-four-steps.png)
 
 This repository contains the WeBirr payment gateway plugin for WooCommerce plus
 a local Docker example that installs and exercises the actual plugin.
+
+The opener shows the same catalog-first online checkout story used across the
+WeBirr checkout examples: catalog selection, checkout review, WeBirr Payment
+Code display, and payment confirmation. The Docker example screenshots below
+show the actual WooCommerce plugin running inside WordPress and WooCommerce.
 
 ## Repository Layout
 
@@ -164,8 +169,19 @@ wallet app. Detailed customer payment instructions are available on the WeBirr
 
 ## Screenshots
 
-The Docker example screenshots show the plugin running inside WooCommerce with
-TestEnv credentials.
+### Standard Catalog-First Flow
+
+This is the visual checkout story shared with the WeBirr checkout-kit examples.
+It uses the standalone WooCommerce demo so the catalog, review, payment-code,
+and confirmation states can be compared directly with the Go and JavaScript
+checkout-kit examples.
+
+![WeBirr WooCommerce catalog-first checkout flow](examples/standalone-checkout-demo/screenshots/woocommerce-standalone-journey-four-steps.png)
+
+### Actual WooCommerce Plugin Flow
+
+The Docker example screenshots show the real plugin running inside WooCommerce
+with TestEnv credentials.
 
 ![WeBirr WooCommerce online checkout flow](examples/docker/screenshots/woocommerce-online-checkout-journey.png)
 
