@@ -6,10 +6,10 @@ This example starts a local WordPress/WooCommerce store with the WeBirr gateway
 mounted from this repository. It is intended for local validation, screenshots,
 and release checks before packaging the plugin.
 
-The opener shows the shared WeBirr catalog-first checkout story used across the
-checkout examples: catalog selection, checkout review, WeBirr Payment Code
-display, and payment confirmation. The screenshots below show the actual
-WooCommerce plugin running inside WordPress and WooCommerce.
+The opener shows this repository's catalog-first checkout story: catalog
+selection, checkout review, WeBirr Payment Code display, and payment
+confirmation. The screenshots below show the actual WooCommerce plugin running
+inside WordPress and WooCommerce.
 
 ## What This Example Demonstrates
 
