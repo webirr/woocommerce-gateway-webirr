@@ -252,7 +252,7 @@ final class Client {
      */
     private function decode_response($response): \stdClass {
         if (function_exists('is_wp_error') && is_wp_error($response)) {
-            return $this->error_response('WordPress HTTP error: ' . $response->get_error_message());
+            throw $this->platform_error('WordPress HTTP error: ' . $response->get_error_message());
         }
 
         $status = 200;
@@ -271,11 +271,11 @@ final class Client {
         }
 
         if ($transport_error !== '') {
-            return $this->error_response($transport_error);
+            throw $this->platform_error($transport_error);
         }
 
         if ($status < 200 || $status >= 300) {
-            return $this->error_response('http error ' . $status);
+            throw $this->platform_error('http error ' . $status);
         }
 
         if (is_object($body)) {
@@ -284,24 +284,20 @@ final class Client {
 
         $decoded = json_decode((string)$body);
         if (json_last_error() !== JSON_ERROR_NONE || !is_object($decoded)) {
-            return $this->error_response('invalid response from WeBirr');
+            throw $this->platform_error('invalid response from WeBirr');
         }
 
         return $decoded;
     }
 
     /**
-     * Build gateway-style error response.
+     * Build a platform error for transport/HTTP/response-shape failures.
      *
      * @param string $message Error message.
-     * @return \stdClass
+     * @return \RuntimeException
      */
-    private function error_response(string $message): \stdClass {
+    private function platform_error(string $message): \RuntimeException {
         $this->logger->error('WeBirr error', ['message' => $message]);
-
-        return (object)[
-            'error' => $message,
-            'res' => null,
-        ];
+        return new \RuntimeException($message);
     }
 }

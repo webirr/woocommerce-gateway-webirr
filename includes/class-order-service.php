@@ -21,6 +21,8 @@ final class Order_Service {
     public const META_COMPLETED_AT = '_webirr_completed_at';
     public const META_LAST_ERROR = '_webirr_last_error';
 
+    private const GATEWAY_UNAVAILABLE_MESSAGE = 'WeBirr gateway is not available.';
+
     private const COMPLETION_LOCK_TTL_SECONDS = 120;
 
     /** @var Client */
@@ -45,60 +47,60 @@ final class Order_Service {
      * @return array<string, mixed>
      */
     public function prepare_payment($order): array {
-        $merchant_reference = $this->ensure_merchant_reference($order);
-        $bill = $this->build_bill_from_order($order, $merchant_reference);
-        $payment_code = $this->get_meta($order, self::META_PAYMENT_CODE);
+        try {
+            $merchant_reference = $this->ensure_merchant_reference($order);
+            $bill = $this->build_bill_from_order($order, $merchant_reference);
+            $payment_code = $this->get_meta($order, self::META_PAYMENT_CODE);
 
-        if ($payment_code !== '') {
-            $this->maybe_update_existing_bill($order, $payment_code, $bill);
-            return $this->state($order, true);
-        }
-
-        $recovered = $this->client->get_bill_by_reference($merchant_reference);
-        $recovery_error = Response_Normalizer::error($recovered);
-        if ($recovery_error === '') {
-            $recovered_code = Response_Normalizer::payment_code($recovered);
-            if ($recovered_code !== '') {
-                $this->set_meta($order, self::META_PAYMENT_CODE, $recovered_code);
-                $this->set_meta($order, self::META_PAYMENT_STATUS, (string)Response_Normalizer::payment_status($recovered));
-
-                if (!Response_Normalizer::is_paid($recovered) && $this->bill_details_changed($recovered, $bill)) {
-                    $updated = $this->client->update_bill($bill);
-                    $updated_error = Response_Normalizer::error($updated);
-                    if ($updated_error !== '') {
-                        return $this->failure($order, $updated_error);
-                    }
-                }
-
-                $this->save($order);
+            if ($payment_code !== '') {
+                $this->maybe_update_existing_bill($order, $payment_code, $bill);
                 return $this->state($order, true);
             }
 
-            return $this->failure($order, 'WeBirr did not return a payment code for the recovered bill.');
+            $recovered = $this->client->get_bill_by_reference($merchant_reference);
+            $recovery_error = Response_Normalizer::error($recovered);
+            if ($recovery_error === '') {
+                $recovered_code = Response_Normalizer::payment_code($recovered);
+                if ($recovered_code !== '') {
+                    $this->set_meta($order, self::META_PAYMENT_CODE, $recovered_code);
+                    $this->set_meta($order, self::META_PAYMENT_STATUS, (string)Response_Normalizer::payment_status($recovered));
+
+                    if (!Response_Normalizer::is_paid($recovered) && $this->bill_details_changed($recovered, $bill)) {
+                        $updated = $this->client->update_bill($bill);
+                        $updated_error = Response_Normalizer::error($updated);
+                        if ($updated_error !== '') {
+                            return $this->failure($order, $updated_error);
+                        }
+                    }
+
+                    $this->save($order);
+                    return $this->state($order, true);
+                }
+
+                return $this->failure($order, 'WeBirr did not return a payment code for the recovered bill.');
+            }
+
+            $created = $this->client->create_bill($bill);
+            $created_error = Response_Normalizer::error($created);
+            if ($created_error !== '') {
+                return $this->failure($order, $created_error);
+            }
+
+            $created_code = Response_Normalizer::payment_code($created);
+            if ($created_code === '') {
+                return $this->failure($order, 'WeBirr did not return a payment code.');
+            }
+
+            $this->set_meta($order, self::META_PAYMENT_CODE, $created_code);
+            $this->set_meta($order, self::META_PAYMENT_STATUS, '0');
+            $this->set_meta($order, self::META_LAST_ERROR, '');
+            $this->add_note($order, 'WeBirr payment code created.');
+            $this->save($order);
+
+            return $this->state($order, true);
+        } catch (\RuntimeException $exception) {
+            return $this->failure($order, self::GATEWAY_UNAVAILABLE_MESSAGE);
         }
-
-        if (Response_Normalizer::is_transport_error($recovery_error)) {
-            return $this->failure($order, $recovery_error);
-        }
-
-        $created = $this->client->create_bill($bill);
-        $created_error = Response_Normalizer::error($created);
-        if ($created_error !== '') {
-            return $this->failure($order, $created_error);
-        }
-
-        $created_code = Response_Normalizer::payment_code($created);
-        if ($created_code === '') {
-            return $this->failure($order, 'WeBirr did not return a payment code.');
-        }
-
-        $this->set_meta($order, self::META_PAYMENT_CODE, $created_code);
-        $this->set_meta($order, self::META_PAYMENT_STATUS, '0');
-        $this->set_meta($order, self::META_LAST_ERROR, '');
-        $this->add_note($order, 'WeBirr payment code created.');
-        $this->save($order);
-
-        return $this->state($order, true);
     }
 
     /**
@@ -113,10 +115,14 @@ final class Order_Service {
             return $this->failure($order, 'Missing WeBirr payment code.');
         }
 
-        $status = $this->client->get_payment_status($payment_code);
-        $error = Response_Normalizer::error($status);
-        if ($error !== '') {
-            return $this->failure($order, $error);
+        try {
+            $status = $this->client->get_payment_status($payment_code);
+            $error = Response_Normalizer::error($status);
+            if ($error !== '') {
+                return $this->failure($order, $error);
+            }
+        } catch (\RuntimeException $exception) {
+            return $this->failure($order, self::GATEWAY_UNAVAILABLE_MESSAGE);
         }
 
         $status_value = Response_Normalizer::payment_status($status);
@@ -358,28 +364,32 @@ final class Order_Service {
      * @return void
      */
     private function maybe_update_existing_bill($order, string $payment_code, array $bill): void {
-        $status = $this->client->get_payment_status($payment_code);
-        if (Response_Normalizer::error($status) === '') {
-            $status_value = Response_Normalizer::payment_status($status);
-            $this->set_meta($order, self::META_PAYMENT_STATUS, (string)$status_value);
+        try {
+            $status = $this->client->get_payment_status($payment_code);
+            if (Response_Normalizer::error($status) === '') {
+                $status_value = Response_Normalizer::payment_status($status);
+                $this->set_meta($order, self::META_PAYMENT_STATUS, (string)$status_value);
 
-            if ($status_value === 2) {
-                $this->complete_order_if_paid($order, $status);
-                return;
+                if ($status_value === 2) {
+                    $this->complete_order_if_paid($order, $status);
+                    return;
+                }
             }
-        }
 
-        $existing_bill = $this->client->get_bill_by_payment_code($payment_code);
-        if (
-            Response_Normalizer::error($existing_bill) === '' &&
-            !Response_Normalizer::is_paid($existing_bill) &&
-            $this->bill_details_changed($existing_bill, $bill)
-        ) {
-            $updated = $this->client->update_bill($bill);
-            $error = Response_Normalizer::error($updated);
-            if ($error !== '') {
-                $this->set_meta($order, self::META_LAST_ERROR, $error);
+            $existing_bill = $this->client->get_bill_by_payment_code($payment_code);
+            if (
+                Response_Normalizer::error($existing_bill) === '' &&
+                !Response_Normalizer::is_paid($existing_bill) &&
+                $this->bill_details_changed($existing_bill, $bill)
+            ) {
+                $updated = $this->client->update_bill($bill);
+                $error = Response_Normalizer::error($updated);
+                if ($error !== '') {
+                    $this->set_meta($order, self::META_LAST_ERROR, $error);
+                }
             }
+        } catch (\RuntimeException $exception) {
+            $this->set_meta($order, self::META_LAST_ERROR, self::GATEWAY_UNAVAILABLE_MESSAGE);
         }
 
         $this->save($order);

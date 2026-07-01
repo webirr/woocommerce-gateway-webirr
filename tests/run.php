@@ -207,6 +207,31 @@ function test_gateway_url_override_applies_to_testenv_only(): void {
     }
 }
 
+function test_client_throws_for_platform_failures(): void {
+    $calls = [];
+    $client = client_with_transport($calls, [
+        ['status' => 500, 'body' => 'server error', 'error' => ''],
+    ]);
+
+    try {
+        $client->get_payment_status('PAY123');
+        assert_true(false, 'Non-2xx responses should throw.');
+    } catch (RuntimeException $exception) {
+        assert_same('http error 500', $exception->getMessage(), 'Non-2xx should stay in the platform error channel.');
+    }
+
+    $client = client_with_transport($calls, [
+        ['status' => 200, 'body' => 'not json', 'error' => ''],
+    ]);
+
+    try {
+        $client->get_payment_status('PAY123');
+        assert_true(false, 'Invalid 2xx bodies should throw.');
+    } catch (RuntimeException $exception) {
+        assert_same('invalid response from WeBirr', $exception->getMessage(), 'Invalid 2xx bodies should stay in the platform error channel.');
+    }
+}
+
 function test_prepare_payment_create_and_reuse(): void {
     $calls = [];
     $client = client_with_transport($calls, [
@@ -230,6 +255,21 @@ function test_prepare_payment_create_and_reuse(): void {
     $reuse = $service->prepare_payment($order);
     assert_true((bool)$reuse['success'], 'Reuse flow should succeed.');
     assert_same('PAY123', $reuse['paymentCode'], 'Existing payment code should be reused.');
+}
+
+function test_prepare_payment_platform_failure_returns_generic_error(): void {
+    $calls = [];
+    $client = client_with_transport($calls, [
+        ['status' => 500, 'body' => 'server error', 'error' => ''],
+    ]);
+    $order = new FakeOrder();
+    $service = new Order_Service($client);
+
+    $result = $service->prepare_payment($order);
+
+    assert_true(!(bool)$result['success'], 'Platform failure should fail checkout.');
+    assert_same('WeBirr gateway is not available.', $result['error'], 'Customer-facing error should be generic.');
+    assert_same('WeBirr gateway is not available.', $order->meta[Order_Service::META_LAST_ERROR], 'Stored last error should be generic.');
 }
 
 function test_update_unpaid_changed_existing_bill(): void {
@@ -339,7 +379,9 @@ function test_supported_banks_and_payment_helpers(): void {
 $tests = [
     'client query and bill payload' => 'test_client_query_and_bill_payload',
     'gateway url override applies to testenv only' => 'test_gateway_url_override_applies_to_testenv_only',
+    'client throws for platform failures' => 'test_client_throws_for_platform_failures',
     'prepare payment create and reuse' => 'test_prepare_payment_create_and_reuse',
+    'prepare payment platform failure returns generic error' => 'test_prepare_payment_platform_failure_returns_generic_error',
     'update unpaid changed existing bill' => 'test_update_unpaid_changed_existing_bill',
     'idempotent paid completion' => 'test_idempotent_paid_completion',
     'completion lock blocks parallel completion' => 'test_completion_lock_blocks_parallel_completion',
